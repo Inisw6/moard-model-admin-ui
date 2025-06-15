@@ -19,13 +19,15 @@ import {
   useTheme,
   Snackbar,
   Tabs,
-  Tab
+  Tab,
+  IconButton
 } from '@mui/material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import PrecisionManufacturingIcon from '@mui/icons-material/PrecisionManufacturing';
 import { Theme } from '@mui/material/styles';
 import { ArrowBack } from '@mui/icons-material';
+import DeleteIcon from '@mui/icons-material/Delete';
 
 interface ModelStats {
   modelVersion: string;
@@ -230,6 +232,26 @@ export default function ModelManagement() {
     setActiveTab(newValue);
   };
 
+  const handleDeleteTask = async (taskId: string) => {
+    try {
+      const response = await fetch(`http://localhost:8000/api/v1/online-learning/async-batch-status/${taskId}`, {
+        method: 'DELETE',
+        headers: {
+          'accept': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        setSuccess('학습 작업이 삭제되었습니다.');
+        fetchLatestTraining(); // 목록 새로고침
+      } else {
+        setError('학습 작업 삭제에 실패했습니다.');
+      }
+    } catch (err) {
+      setError('학습 작업 삭제 중 오류가 발생했습니다.');
+    }
+  };
+
   useEffect(() => {
     fetchModelStats();
     fetchModelList();
@@ -334,6 +356,7 @@ export default function ModelManagement() {
                             <TableCell sx={{ fontWeight: 600, bgcolor: 'background.default' }}>상태</TableCell>
                             <TableCell sx={{ fontWeight: 600, bgcolor: 'background.default' }}>저장 경로</TableCell>
                             <TableCell sx={{ fontWeight: 600, bgcolor: 'background.default' }}>총 손실값</TableCell>
+                            <TableCell sx={{ fontWeight: 600, bgcolor: 'background.default' }}>작업</TableCell>
                           </TableRow>
                         </TableHead>
                         <TableBody>
@@ -355,6 +378,15 @@ export default function ModelManagement() {
                               </TableCell>
                               <TableCell>
                                 {task.total_loss !== null ? task.total_loss.toFixed(4) : '-'}
+                              </TableCell>
+                              <TableCell>
+                                <IconButton
+                                  size="small"
+                                  onClick={() => handleDeleteTask(task.task_id)}
+                                  sx={{ color: 'error.main' }}
+                                >
+                                  <DeleteIcon fontSize="small" />
+                                </IconButton>
                               </TableCell>
                             </TableRow>
                           ))}
