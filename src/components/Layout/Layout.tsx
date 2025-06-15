@@ -40,7 +40,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               fontWeight: 700, 
               color: 'text.primary'
             }}>
-              AI Model Hub
+              Moard Dashboard
             </Typography>
           </Box>
           

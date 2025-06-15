@@ -16,17 +16,41 @@ import {
   Alert,
   Divider,
   styled,
-  useTheme
+  useTheme,
+  Snackbar
 } from '@mui/material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import PrecisionManufacturingIcon from '@mui/icons-material/PrecisionManufacturing';
 import { Theme } from '@mui/material/styles';
+import { ArrowBack } from '@mui/icons-material';
 
 interface ModelStats {
   modelVersion: string;
   totalRecommendations: number;
   totalClicks: number;
+}
+
+interface ModelList {
+  models: string[];
+  current_model: string;
+  message: string;
+}
+
+interface LearningTask {
+  task_id: string;
+  status: string;
+  start_time: string;
+  end_time: string;
+  total_interactions: number;
+  processed_interactions: number;
+  results: Array<{
+    q_value: number;
+    loss: number;
+  }>;
+  total_loss: number;
+  error: string | null;
+  save_path: string;
 }
 
 const PageContainer = styled(Box)`
@@ -75,18 +99,49 @@ export default function ModelManagement() {
   const navigate = useNavigate();
   const location = useLocation();
   const [modelStats, setModelStats] = useState<ModelStats[]>([]);
+  const [modelList, setModelList] = useState<ModelList | null>(null);
   const [isTraining, setIsTraining] = useState(false);
   const [trainingProgress, setTrainingProgress] = useState(0);
   const [selectedModel, setSelectedModel] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [latestTraining, setLatestTraining] = useState<LearningTask | null>(null);
 
   const fetchModelStats = async () => {
     try {
-      const response = await axios.get('http://localhost:8080/api/v1/recommendations/statistics/models');
-      setModelStats(response.data);
+      const response = await fetch('http://localhost:8080/api/v1/recommendations/statistics/models');
+      const data = await response.json();
+      setModelStats(data);
     } catch (err) {
       setError('모델 통계를 불러오는데 실패했습니다.');
+    }
+  };
+
+  const fetchModelList = async () => {
+    try {
+      const response = await fetch('http://localhost:8000/api/v1/model/list');
+      const data = await response.json();
+      setModelList(data);
+      setSelectedModel(data.current_model);
+    } catch (err) {
+      setError('모델 목록을 불러오는데 실패했습니다.');
+    }
+  };
+
+  const fetchLatestTraining = async () => {
+    try {
+      const response = await fetch('http://localhost:8000/api/v1/online-learning/tasks');
+      const data: LearningTask[] = await response.json();
+      const completedTasks = data.filter(task => task.status === 'completed');
+      if (completedTasks.length > 0) {
+        // 가장 최근 완료된 작업 찾기
+        const latestTask = completedTasks.reduce((latest, current) => {
+          return new Date(current.end_time) > new Date(latest.end_time) ? current : latest;
+        });
+        setLatestTraining(latestTask);
+      }
+    } catch (err) {
+      setError('학습 정보를 불러오는데 실패했습니다.');
     }
   };
 
@@ -115,8 +170,17 @@ export default function ModelManagement() {
     }
 
     try {
-      await axios.post('/api/model/apply', { modelVersion: selectedModel });
+      const response = await fetch(`http://localhost:8000/api/v1/model/change?model_name=${selectedModel}`, {
+        method: 'POST',
+      });
+      
+      if (!response.ok) {
+        throw new Error('모델 적용에 실패했습니다.');
+      }
+      
       setSuccess('모델이 성공적으로 적용되었습니다.');
+      // 모델 목록 새로고침
+      fetchModelList();
     } catch (err) {
       setError('모델 적용에 실패했습니다.');
     }
@@ -124,12 +188,14 @@ export default function ModelManagement() {
 
   useEffect(() => {
     fetchModelStats();
+    fetchModelList();
+    fetchLatestTraining();
   }, []);
 
   return (
     <PageContainer theme={theme}>
       {/* 상단 네비게이션 */}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
         <HeaderContainer>
           <IconWrapper theme={theme}>
             <PrecisionManufacturingIcon sx={{ fontSize: 28 }} />
@@ -144,10 +210,10 @@ export default function ModelManagement() {
         </HeaderContainer>
       </Box>
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 3 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
         {/* 왼쪽: 모델 통계 */}
         <StyledCard>
-          <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+          <Typography variant="h6" sx={{ mb: 1, fontWeight: 600 }}>
             모델 통계
           </Typography>
           <StyledTableContainer>
@@ -177,10 +243,10 @@ export default function ModelManagement() {
         </StyledCard>
 
         {/* 오른쪽: 모델 학습 및 적용 */}
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           {/* 모델 학습 */}
           <StyledCard>
-            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+            <Typography variant="h6" sx={{ mb: 1, fontWeight: 600 }}>
               모델 학습
             </Typography>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -190,11 +256,38 @@ export default function ModelManagement() {
                   <Typography>모델 학습 중... {trainingProgress}%</Typography>
                 </Box>
               )}
+
+              {latestTraining && (
+                <Box sx={{ mt: 1 }}>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
+                    학습 리스트
+                  </Typography>
+                  <TableContainer component={Paper} sx={{ boxShadow: 'none', border: '1px solid', borderColor: 'divider' }}>
+                    <Table size="small">
+                      <TableHead>
+                        <TableRow>
+                          <TableCell sx={{ fontWeight: 600, bgcolor: 'background.default' }}>시작 시간</TableCell>
+                          <TableCell sx={{ fontWeight: 600, bgcolor: 'background.default' }}>저장 경로</TableCell>
+                          <TableCell sx={{ fontWeight: 600, bgcolor: 'background.default' }}>총 손실값</TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        <TableRow>
+                          <TableCell>{new Date(latestTraining.start_time).toLocaleString()}</TableCell>
+                          <TableCell sx={{ wordBreak: 'break-all' }}>{latestTraining.save_path}</TableCell>
+                          <TableCell>{latestTraining.total_loss.toFixed(4)}</TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                </Box>
+              )}
+
               <Button
                 variant="contained"
                 onClick={handleTrainModel}
                 disabled={isTraining}
-                sx={{ alignSelf: 'flex-start' }}
+                sx={{ alignSelf: 'flex-start', mt: 1 }}
               >
                 모델 학습 시작
               </Button>
@@ -203,7 +296,7 @@ export default function ModelManagement() {
 
           {/* 모델 적용 */}
           <StyledCard>
-            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+            <Typography variant="h6" sx={{ mb: 1, fontWeight: 600 }}>
               모델 적용
             </Typography>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -218,16 +311,16 @@ export default function ModelManagement() {
                 fullWidth
               >
                 <option value="">선택하세요</option>
-                {modelStats.map((stat) => (
-                  <option key={stat.modelVersion} value={stat.modelVersion}>
-                    {stat.modelVersion}
+                {modelList?.models.map((model) => (
+                  <option key={model} value={model}>
+                    {model}
                   </option>
                 ))}
               </TextField>
               <Button
                 variant="contained"
                 onClick={handleApplyModel}
-                disabled={!selectedModel}
+                disabled={!selectedModel || selectedModel === modelList?.current_model}
                 sx={{ alignSelf: 'flex-start' }}
               >
                 모델 적용하기
@@ -238,16 +331,26 @@ export default function ModelManagement() {
       </Box>
 
       {/* 알림 메시지 */}
-      {error && (
-        <Alert severity="error" sx={{ mt: 2 }}>
-          {error}
+      <Snackbar
+        open={!!error || !!success}
+        autoHideDuration={6000}
+        onClose={() => {
+          setError(null);
+          setSuccess(null);
+        }}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => {
+            setError(null);
+            setSuccess(null);
+          }}
+          severity={error ? 'error' : 'success'}
+          sx={{ width: '100%' }}
+        >
+          {error || success}
         </Alert>
-      )}
-      {success && (
-        <Alert severity="success" sx={{ mt: 2 }}>
-          {success}
-        </Alert>
-      )}
+      </Snackbar>
     </PageContainer>
   );
 } 
