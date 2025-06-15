@@ -189,20 +189,23 @@ export default function ModelManagement() {
   };
 
   const handleTrainModel = async () => {
-    setIsTraining(true);
-    setTrainingProgress(0);
-    setError(null);
-    setSuccess(null);
-
     try {
-      // 모델 학습 API 호출
-      const response = await axios.post('/api/model/train');
-      setSuccess('모델 학습이 완료되었습니다.');
+      const response = await fetch('http://localhost:8000/api/v1/online-learning/async-train?batch_size=100&save_model=true', {
+        method: 'POST',
+        headers: {
+          'accept': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        setSuccess('모델 학습이 시작되었습니다.');
+        // 학습 작업 목록 새로고침
+        fetchLatestTraining();
+      } else {
+        setError('모델 학습 시작에 실패했습니다.');
+      }
     } catch (err) {
-      setError('모델 학습에 실패했습니다.');
-    } finally {
-      setIsTraining(false);
-      setTrainingProgress(0);
+      setError('모델 학습 중 오류가 발생했습니다.');
     }
   };
 
@@ -357,14 +360,7 @@ export default function ModelManagement() {
             </Typography>
             <CardContent>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                {isTraining && (
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                    <CircularProgress size={20} />
-                    <Typography>모델 학습 중... {trainingProgress}%</Typography>
-                  </Box>
-                )}
-
-                {latestTraining && (
+                {trainingTasks.length > 0 && (
                   <Box sx={{ mt: 1 }}>
                     <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
                       학습 리스트
@@ -382,7 +378,15 @@ export default function ModelManagement() {
                         </TableHead>
                         <TableBody>
                           {trainingTasks.map((task) => (
-                            <TableRow key={task.task_id}>
+                            <TableRow 
+                              key={task.task_id}
+                              sx={{ 
+                                '&:hover': { 
+                                  bgcolor: 'action.hover',
+                                  cursor: 'pointer'
+                                }
+                              }}
+                            >
                               <TableCell>{new Date(task.start_time).toLocaleString()}</TableCell>
                               <TableCell>
                                 {task.status === 'processing' ? (
@@ -420,7 +424,6 @@ export default function ModelManagement() {
                 <Button
                   variant="contained"
                   onClick={handleTrainModel}
-                  disabled={isTraining}
                   sx={{ alignSelf: 'flex-start', mt: 1 }}
                 >
                   모델 학습 시작
