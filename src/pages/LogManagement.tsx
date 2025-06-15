@@ -20,7 +20,8 @@ import {
   Tooltip,
   Tabs,
   Tab,
-  Badge
+  Badge,
+  Button
 } from '@mui/material';
 import { Theme } from '@mui/material/styles';
 import styled from '@emotion/styled';
@@ -29,6 +30,7 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import PersonIcon from '@mui/icons-material/Person';
 import axios from 'axios';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 interface UserLog {
   id: number;
@@ -118,6 +120,8 @@ const LogManagement: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [activeTab, setActiveTab] = useState(0);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const fetchData = async () => {
     try {
@@ -135,6 +139,7 @@ const LogManagement: React.FC = () => {
 
   useEffect(() => {
     fetchData();
+    console.log('Current path:', location.pathname);
   }, []);
 
   const formatDate = (dateString: string) => {
@@ -233,15 +238,56 @@ const LogManagement: React.FC = () => {
                 </Box>
                 <Divider sx={{ mb: 2 }} />
 
-                <Tabs 
-                  value={activeTab} 
-                  onChange={(_, newValue) => setActiveTab(newValue)}
-                  sx={{ mb: 2 }}
-                >
-                  <Tab label="사용자 로그" />
-                  <Tab label="추천 로그" />
-                  <Tab label="주식 로그" />
-                </Tabs>
+                <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+                  <Button
+                    variant={activeTab === 0 ? "contained" : "outlined"}
+                    onClick={() => setActiveTab(0)}
+                    sx={{ 
+                      borderRadius: 2,
+                      textTransform: 'none',
+                      px: 2,
+                      bgcolor: activeTab === 0 ? 'primary.main' : 'transparent',
+                      color: activeTab === 0 ? 'white' : 'text.primary',
+                      '&:hover': {
+                        bgcolor: activeTab === 0 ? 'primary.dark' : 'action.hover'
+                      }
+                    }}
+                  >
+                    사용자 로그
+                  </Button>
+                  <Button
+                    variant={activeTab === 1 ? "contained" : "outlined"}
+                    onClick={() => setActiveTab(1)}
+                    sx={{ 
+                      borderRadius: 2,
+                      textTransform: 'none',
+                      px: 2,
+                      bgcolor: activeTab === 1 ? 'primary.main' : 'transparent',
+                      color: activeTab === 1 ? 'white' : 'text.primary',
+                      '&:hover': {
+                        bgcolor: activeTab === 1 ? 'primary.dark' : 'action.hover'
+                      }
+                    }}
+                  >
+                    추천 로그
+                  </Button>
+                  <Button
+                    variant={activeTab === 2 ? "contained" : "outlined"}
+                    onClick={() => setActiveTab(2)}
+                    sx={{ 
+                      borderRadius: 2,
+                      textTransform: 'none',
+                      px: 2,
+                      bgcolor: activeTab === 2 ? 'primary.main' : 'transparent',
+                      color: activeTab === 2 ? 'white' : 'text.primary',
+                      '&:hover': {
+                        bgcolor: activeTab === 2 ? 'primary.dark' : 'action.hover'
+                      }
+                    }}
+                  >
+                    주식 로그
+                  </Button>
+                </Box>
 
                 {/* 사용자 로그 */}
                 {activeTab === 0 && (
