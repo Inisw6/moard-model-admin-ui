@@ -17,7 +17,9 @@ import {
   Divider,
   styled,
   useTheme,
-  Snackbar
+  Snackbar,
+  Tabs,
+  Tab
 } from '@mui/material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
@@ -79,10 +81,22 @@ const IconWrapper = styled(Box)<{ theme: Theme }>`
 `;
 
 const StyledTableContainer = styled(TableContainer)({
-  borderRadius: 12,
-  boxShadow: '0 2px 12px rgba(0,0,0,0.04)',
-  '& .MuiTableCell-root': {
-    borderBottom: '1px solid rgba(0,0,0,0.06)'
+  flex: 1,
+  overflow: 'auto',
+  '&::-webkit-scrollbar': {
+    width: '8px',
+    height: '8px'
+  },
+  '&::-webkit-scrollbar-track': {
+    background: '#f1f1f1',
+    borderRadius: '4px'
+  },
+  '&::-webkit-scrollbar-thumb': {
+    background: '#888',
+    borderRadius: '4px',
+    '&:hover': {
+      background: '#555'
+    }
   }
 });
 
@@ -91,7 +105,28 @@ const StyledCard = styled(Card)({
   boxShadow: '0 2px 12px rgba(0,0,0,0.04)',
   padding: 24,
   height: '100%',
-  minHeight: 250
+  display: 'flex',
+  flexDirection: 'column'
+});
+
+const CardContent = styled(Box)({
+  flex: 1,
+  overflow: 'auto',
+  '&::-webkit-scrollbar': {
+    width: '8px',
+    height: '8px'
+  },
+  '&::-webkit-scrollbar-track': {
+    background: '#f1f1f1',
+    borderRadius: '4px'
+  },
+  '&::-webkit-scrollbar-thumb': {
+    background: '#888',
+    borderRadius: '4px',
+    '&:hover': {
+      background: '#555'
+    }
+  }
 });
 
 export default function ModelManagement() {
@@ -106,6 +141,8 @@ export default function ModelManagement() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [latestTraining, setLatestTraining] = useState<LearningTask | null>(null);
+  const [activeTab, setActiveTab] = useState(0);
+  const [trainingTasks, setTrainingTasks] = useState<LearningTask[]>([]);
 
   const fetchModelStats = async () => {
     try {
@@ -132,13 +169,16 @@ export default function ModelManagement() {
     try {
       const response = await fetch('http://localhost:8000/api/v1/online-learning/tasks');
       const data: LearningTask[] = await response.json();
-      const completedTasks = data.filter(task => task.status === 'completed');
-      if (completedTasks.length > 0) {
+      setTrainingTasks(data);
+      if (data.length > 0) {
         // 가장 최근 완료된 작업 찾기
-        const latestTask = completedTasks.reduce((latest, current) => {
-          return new Date(current.end_time) > new Date(latest.end_time) ? current : latest;
-        });
-        setLatestTraining(latestTask);
+        const completedTasks = data.filter(task => task.status === 'completed');
+        if (completedTasks.length > 0) {
+          const latestTask = completedTasks.reduce((latest, current) => {
+            return new Date(current.end_time!) > new Date(latest.end_time!) ? current : latest;
+          });
+          setLatestTraining(latestTask);
+        }
       }
     } catch (err) {
       setError('학습 정보를 불러오는데 실패했습니다.');
@@ -186,10 +226,24 @@ export default function ModelManagement() {
     }
   };
 
+  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+    setActiveTab(newValue);
+  };
+
   useEffect(() => {
     fetchModelStats();
     fetchModelList();
     fetchLatestTraining();
+
+    // 3초마다 학습 작업 목록 업데이트
+    const intervalId = setInterval(() => {
+      fetchLatestTraining();
+    }, 3000);
+
+    // 컴포넌트 언마운트 시 인터벌 정리
+    return () => {
+      clearInterval(intervalId);
+    };
   }, []);
 
   return (
@@ -210,124 +264,155 @@ export default function ModelManagement() {
         </HeaderContainer>
       </Box>
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2 }}>
-        {/* 왼쪽: 모델 통계 */}
-        <StyledCard>
-          <Typography variant="h6" sx={{ mb: 1, fontWeight: 600 }}>
-            모델 통계
-          </Typography>
-          <StyledTableContainer>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell sx={{ fontWeight: 600 }}>모델 버전</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>추천 횟수</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>클릭 횟수</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>클릭률</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {modelStats.map((stat) => (
-                  <TableRow key={stat.modelVersion}>
-                    <TableCell>{stat.modelVersion}</TableCell>
-                    <TableCell>{stat.totalRecommendations}</TableCell>
-                    <TableCell>{stat.totalClicks}</TableCell>
-                    <TableCell>
-                      {((stat.totalClicks / stat.totalRecommendations) * 100).toFixed(1)}%
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </StyledTableContainer>
-        </StyledCard>
+      <Box sx={{ width: '100%' }}>
+        <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 2 }}>
+          <Tabs value={activeTab} onChange={handleTabChange} aria-label="model management tabs">
+            <Tab label="모델 통계" />
+            <Tab label="모델 학습" />
+            <Tab label="모델 적용" />
+          </Tabs>
+        </Box>
 
-        {/* 오른쪽: 모델 학습 및 적용 */}
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          {/* 모델 학습 */}
+        {/* 모델 통계 */}
+        {activeTab === 0 && (
+          <StyledCard>
+            <Typography variant="h6" sx={{ mb: 1, fontWeight: 600 }}>
+              모델 통계
+            </Typography>
+            <StyledTableContainer>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell sx={{ fontWeight: 600 }}>모델 버전</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>추천 횟수</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>클릭 횟수</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>클릭률</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {modelStats.map((stat) => (
+                    <TableRow key={stat.modelVersion}>
+                      <TableCell>{stat.modelVersion}</TableCell>
+                      <TableCell>{stat.totalRecommendations}</TableCell>
+                      <TableCell>{stat.totalClicks}</TableCell>
+                      <TableCell>
+                        {((stat.totalClicks / stat.totalRecommendations) * 100).toFixed(1)}%
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </StyledTableContainer>
+          </StyledCard>
+        )}
+
+        {/* 모델 학습 */}
+        {activeTab === 1 && (
           <StyledCard>
             <Typography variant="h6" sx={{ mb: 1, fontWeight: 600 }}>
               모델 학습
             </Typography>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              {isTraining && (
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <CircularProgress size={20} />
-                  <Typography>모델 학습 중... {trainingProgress}%</Typography>
-                </Box>
-              )}
+            <CardContent>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {isTraining && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                    <CircularProgress size={20} />
+                    <Typography>모델 학습 중... {trainingProgress}%</Typography>
+                  </Box>
+                )}
 
-              {latestTraining && (
-                <Box sx={{ mt: 1 }}>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
-                    학습 리스트
-                  </Typography>
-                  <TableContainer component={Paper} sx={{ boxShadow: 'none', border: '1px solid', borderColor: 'divider' }}>
-                    <Table size="small">
-                      <TableHead>
-                        <TableRow>
-                          <TableCell sx={{ fontWeight: 600, bgcolor: 'background.default' }}>시작 시간</TableCell>
-                          <TableCell sx={{ fontWeight: 600, bgcolor: 'background.default' }}>저장 경로</TableCell>
-                          <TableCell sx={{ fontWeight: 600, bgcolor: 'background.default' }}>총 손실값</TableCell>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        <TableRow>
-                          <TableCell>{new Date(latestTraining.start_time).toLocaleString()}</TableCell>
-                          <TableCell sx={{ wordBreak: 'break-all' }}>{latestTraining.save_path}</TableCell>
-                          <TableCell>{latestTraining.total_loss.toFixed(4)}</TableCell>
-                        </TableRow>
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
-                </Box>
-              )}
+                {latestTraining && (
+                  <Box sx={{ mt: 1 }}>
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
+                      학습 리스트
+                    </Typography>
+                    <TableContainer component={Paper} sx={{ boxShadow: 'none', border: '1px solid', borderColor: 'divider' }}>
+                      <Table size="small">
+                        <TableHead>
+                          <TableRow>
+                            <TableCell sx={{ fontWeight: 600, bgcolor: 'background.default' }}>시작 시간</TableCell>
+                            <TableCell sx={{ fontWeight: 600, bgcolor: 'background.default' }}>상태</TableCell>
+                            <TableCell sx={{ fontWeight: 600, bgcolor: 'background.default' }}>저장 경로</TableCell>
+                            <TableCell sx={{ fontWeight: 600, bgcolor: 'background.default' }}>총 손실값</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {trainingTasks.map((task) => (
+                            <TableRow key={task.task_id}>
+                              <TableCell>{new Date(task.start_time).toLocaleString()}</TableCell>
+                              <TableCell>
+                                {task.status === 'processing' ? (
+                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                    <CircularProgress size={16} />
+                                    <Typography variant="body2">진행중</Typography>
+                                  </Box>
+                                ) : (
+                                  task.status
+                                )}
+                              </TableCell>
+                              <TableCell sx={{ wordBreak: 'break-all' }}>
+                                {task.save_path || '-'}
+                              </TableCell>
+                              <TableCell>
+                                {task.total_loss !== null ? task.total_loss.toFixed(4) : '-'}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  </Box>
+                )}
 
-              <Button
-                variant="contained"
-                onClick={handleTrainModel}
-                disabled={isTraining}
-                sx={{ alignSelf: 'flex-start', mt: 1 }}
-              >
-                모델 학습 시작
-              </Button>
-            </Box>
+                <Button
+                  variant="contained"
+                  onClick={handleTrainModel}
+                  disabled={isTraining}
+                  sx={{ alignSelf: 'flex-start', mt: 1 }}
+                >
+                  모델 학습 시작
+                </Button>
+              </Box>
+            </CardContent>
           </StyledCard>
+        )}
 
-          {/* 모델 적용 */}
+        {/* 모델 적용 */}
+        {activeTab === 2 && (
           <StyledCard>
             <Typography variant="h6" sx={{ mb: 1, fontWeight: 600 }}>
               모델 적용
             </Typography>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-              <TextField
-                select
-                label="적용할 모델 선택"
-                value={selectedModel}
-                onChange={(e) => setSelectedModel(e.target.value)}
-                SelectProps={{
-                  native: true
-                }}
-                fullWidth
-              >
-                <option value="">선택하세요</option>
-                {modelList?.models.map((model) => (
-                  <option key={model} value={model}>
-                    {model}
-                  </option>
-                ))}
-              </TextField>
-              <Button
-                variant="contained"
-                onClick={handleApplyModel}
-                disabled={!selectedModel || selectedModel === modelList?.current_model}
-                sx={{ alignSelf: 'flex-start' }}
-              >
-                모델 적용하기
-              </Button>
-            </Box>
+            <CardContent>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <TextField
+                  select
+                  value={selectedModel}
+                  onChange={(e) => setSelectedModel(e.target.value)}
+                  SelectProps={{
+                    native: true
+                  }}
+                  fullWidth
+                >
+                  <option value="">선택하세요</option>
+                  {modelList?.models.map((model) => (
+                    <option key={model} value={model}>
+                      {model}
+                    </option>
+                  ))}
+                </TextField>
+                <Button
+                  variant="contained"
+                  onClick={handleApplyModel}
+                  disabled={!selectedModel || selectedModel === modelList?.current_model}
+                  sx={{ alignSelf: 'flex-start' }}
+                >
+                  모델 적용하기
+                </Button>
+              </Box>
+            </CardContent>
           </StyledCard>
-        </Box>
+        )}
       </Box>
 
       {/* 알림 메시지 */}
