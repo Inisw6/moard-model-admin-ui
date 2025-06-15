@@ -4,6 +4,7 @@ import styled from '@emotion/styled';
 import HistoryIcon from '@mui/icons-material/History';
 import PrecisionManufacturingIcon from '@mui/icons-material/PrecisionManufacturing';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
+import { useNavigate } from 'react-router-dom';
 
 const Section = styled(Paper)`
   height: 100%;
@@ -148,6 +149,7 @@ interface ModelInfo {
 
 const Dashboard: React.FC = () => {
   const theme = useTheme();
+  const navigate = useNavigate();
   const [userCount, setUserCount] = useState<number>(0);
   const [logCount, setLogCount] = useState<number>(0);
   const [modelInfo, setModelInfo] = useState<ModelInfo>({
@@ -302,7 +304,12 @@ const Dashboard: React.FC = () => {
                   </Grid>
                 </Grid>
               </StatsBox>
-              <ActionButton variant="contained" endIcon={<ArrowForwardIosIcon sx={{ fontSize: 20 }} />} theme={theme}>
+              <ActionButton 
+                variant="contained" 
+                endIcon={<ArrowForwardIosIcon sx={{ fontSize: 20 }} />} 
+                theme={theme}
+                onClick={() => navigate('/logs')}
+              >
                 로그 관리하기
               </ActionButton>
             </SectionContent>
