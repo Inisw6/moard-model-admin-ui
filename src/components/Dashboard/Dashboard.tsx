@@ -133,6 +133,12 @@ interface ModelResponse {
   message: string;
 }
 
+interface ModelStatistics {
+  modelVersion: string;
+  totalRecommendations: number;
+  totalClicks: number;
+}
+
 interface ModelInfo {
   version: string;
   clickRate: number;
@@ -168,17 +174,23 @@ const Dashboard: React.FC = () => {
         const modelResponse = await fetch('http://localhost:8000/api/v1/model/list');
         const modelData: ModelResponse = await modelResponse.json();
         
-        // 클릭률 계산
-        const totalClicks = users.reduce((acc, user) => 
-          acc + (user.userLogList?.filter(log => log.eventType === 'CLICK').length || 0), 0);
-        const totalViews = users.reduce((acc, user) => 
-          acc + (user.userLogList?.length || 0), 0);
+        // 모델별 추천 통계 가져오기
+        const statsResponse = await fetch('http://localhost:8080/api/v1/recommendations/statistics/models');
+        const modelStats: ModelStatistics[] = await statsResponse.json();
+        
+        // 현재 모델의 통계 찾기
+        const currentModelStats = modelStats.find(stat => stat.modelVersion === modelData.current_model) || {
+          totalRecommendations: 0,
+          totalClicks: 0
+        };
         
         setModelInfo({
           version: modelData.current_model,
-          clickRate: totalViews > 0 ? (totalClicks / totalViews) * 100 : 0,
-          totalClicks,
-          totalViews
+          clickRate: currentModelStats.totalRecommendations > 0 
+            ? (currentModelStats.totalClicks / currentModelStats.totalRecommendations) * 100 
+            : 0,
+          totalClicks: currentModelStats.totalClicks,
+          totalViews: currentModelStats.totalRecommendations
         });
       } catch (error) {
         console.error('Error fetching data:', error);
