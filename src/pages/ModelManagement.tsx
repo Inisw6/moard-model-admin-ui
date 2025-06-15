@@ -20,7 +20,8 @@ import {
   Snackbar,
   Tabs,
   Tab,
-  IconButton
+  IconButton,
+  Chip
 } from '@mui/material';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
@@ -252,6 +253,26 @@ export default function ModelManagement() {
     }
   };
 
+  const handleDeleteModel = async (modelName: string) => {
+    try {
+      const response = await fetch(`http://localhost:8000/api/v1/model/${modelName}`, {
+        method: 'DELETE',
+        headers: {
+          'accept': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        setSuccess('모델이 삭제되었습니다.');
+        fetchModelList(); // 모델 목록 새로고침
+      } else {
+        setError('모델 삭제에 실패했습니다.');
+      }
+    } catch (err) {
+      setError('모델 삭제 중 오류가 발생했습니다.');
+    }
+  };
+
   useEffect(() => {
     fetchModelStats();
     fetchModelList();
@@ -417,30 +438,82 @@ export default function ModelManagement() {
             </Typography>
             <CardContent>
               <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <TextField
-                  select
-                  value={selectedModel}
-                  onChange={(e) => setSelectedModel(e.target.value)}
-                  SelectProps={{
-                    native: true
+                <Typography variant="subtitle1" sx={{ fontWeight: 500, mb: 1 }}>
+                  현재 적용된 모델: {modelList?.current_model || '없음'}
+                </Typography>
+                <TableContainer 
+                  component={Paper} 
+                  sx={{ 
+                    boxShadow: 'none', 
+                    border: '1px solid', 
+                    borderColor: 'divider'
                   }}
-                  fullWidth
                 >
-                  <option value="">선택하세요</option>
-                  {modelList?.models.map((model) => (
-                    <option key={model} value={model}>
-                      {model}
-                    </option>
-                  ))}
-                </TextField>
-                <Button
-                  variant="contained"
-                  onClick={handleApplyModel}
-                  disabled={!selectedModel || selectedModel === modelList?.current_model}
-                  sx={{ alignSelf: 'flex-start' }}
-                >
-                  모델 적용하기
-                </Button>
+                  <Table>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell sx={{ fontWeight: 600, bgcolor: 'background.default' }}>모델명</TableCell>
+                        <TableCell sx={{ fontWeight: 600, bgcolor: 'background.default' }}>상태</TableCell>
+                        <TableCell sx={{ fontWeight: 600, bgcolor: 'background.default' }}>작업</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {modelList?.models.map((model) => (
+                        <TableRow 
+                          key={model}
+                          sx={{ 
+                            '&:hover': { 
+                              bgcolor: 'action.hover',
+                              cursor: 'pointer'
+                            }
+                          }}
+                        >
+                          <TableCell>{model}</TableCell>
+                          <TableCell>
+                            {model === modelList.current_model ? (
+                              <Chip 
+                                label="현재 적용됨" 
+                                color="primary" 
+                                size="small"
+                                sx={{ fontWeight: 500 }}
+                              />
+                            ) : (
+                              <Chip 
+                                label="미적용" 
+                                variant="outlined" 
+                                size="small"
+                                sx={{ fontWeight: 500 }}
+                              />
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            <Box sx={{ display: 'flex', gap: 1 }}>
+                              <Button
+                                variant="contained"
+                                size="small"
+                                onClick={() => {
+                                  setSelectedModel(model);
+                                  handleApplyModel();
+                                }}
+                                disabled={model === modelList.current_model}
+                              >
+                                적용하기
+                              </Button>
+                              <IconButton
+                                size="small"
+                                onClick={() => handleDeleteModel(model)}
+                                disabled={model === modelList.current_model}
+                                sx={{ color: 'error.main' }}
+                              >
+                                <DeleteIcon fontSize="small" />
+                              </IconButton>
+                            </Box>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
               </Box>
             </CardContent>
           </StyledCard>
