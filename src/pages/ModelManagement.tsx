@@ -209,15 +209,18 @@ export default function ModelManagement() {
     }
   };
 
-  const handleApplyModel = async () => {
-    if (!selectedModel) {
+  const handleApplyModel = async (modelName: string) => {
+    if (!modelName) {
       setError('적용할 모델을 선택해주세요.');
       return;
     }
 
     try {
-      const response = await fetch(`http://localhost:8000/api/v1/model/change?model_name=${selectedModel}`, {
+      const response = await fetch(`http://localhost:8000/api/v1/model/change?model_name=${modelName}`, {
         method: 'POST',
+        headers: {
+          'accept': 'application/json'
+        }
       });
       
       if (!response.ok) {
@@ -225,8 +228,12 @@ export default function ModelManagement() {
       }
       
       setSuccess('모델이 성공적으로 적용되었습니다.');
-      // 모델 목록 새로고침
-      fetchModelList();
+      // 모든 관련 정보 새로고침
+      await Promise.all([
+        fetchModelList(),
+        fetchModelStats(),
+        fetchLatestTraining()
+      ]);
     } catch (err) {
       setError('모델 적용에 실패했습니다.');
     }
@@ -498,10 +505,7 @@ export default function ModelManagement() {
                               <Button
                                 variant="contained"
                                 size="small"
-                                onClick={() => {
-                                  setSelectedModel(model);
-                                  handleApplyModel();
-                                }}
+                                onClick={() => handleApplyModel(model)}
                                 disabled={model === modelList.current_model}
                               >
                                 적용하기
