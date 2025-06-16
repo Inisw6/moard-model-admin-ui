@@ -234,6 +234,10 @@ export default function ModelManagement() {
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setActiveTab(newValue);
+    if (newValue === 2) { // 모델 적용 탭
+      fetchModelList();
+      fetchModelStats();
+    }
   };
 
   const handleDeleteTask = async (taskId: string) => {
