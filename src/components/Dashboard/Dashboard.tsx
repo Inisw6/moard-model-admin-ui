@@ -364,7 +364,15 @@ const Dashboard: React.FC = () => {
                             fontWeight: 600,
                             color: theme.palette.text.primary,
                             textShadow: '0 1px 2px rgba(0,0,0,0.1)',
-                            mb: 1
+                            mb: 1,
+                            maxWidth: '100%',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            textAlign: 'center',
+                            lineHeight: 1.3
                           }}
                         >
                           {modelInfo.version}
