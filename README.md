@@ -3,6 +3,9 @@
 ## 개요
 이 프로젝트는 **모델 관리와 로그 관리를 위한 관리자 웹 인터페이스**입니다. 
 React와 TypeScript를 기반으로 구축되었으며, Material-UI를 사용하여 페이지를 제공합니다.
+<img width="1506" alt="스크린샷 2025-06-17 오후 2 42 44" src="https://github.com/user-attachments/assets/0ccda97c-6e32-4204-97af-b8193eb05140" />
+<img width="1506" alt="스크린샷 2025-06-17 오후 2 45 08" src="https://github.com/user-attachments/assets/7cdb3731-ffbc-4b8e-970e-15061fb5fad7" />
+<img width="1506" alt="스크린샷 2025-06-17 오후 2 45 55" src="https://github.com/user-attachments/assets/a94e38b1-b442-4dfc-b3d6-5627f150d907" />
 
 ## 환경
 - Node.js
